@@ -1,119 +1,126 @@
-import { Dialog, DialogContent, DialogTitle } from '@mui/material';
-import { useRef, useState,useEffect } from 'react';
+import React, { useRef, useState } from 'react';
+import { useReactToPrint } from 'react-to-print';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
 import Barcode from 'react-barcode';
-import { Close } from '@mui/icons-material';
-import ReactToPrint from 'react-to-print';
 
-const PdfTemplate = (props) => {
-    const ref = useRef();
+const PdfTemplate = ({ InvoiceNumber = '', date = '' }) => {
+  const ref = useRef(null);
   const [openAirPopup, setAirPopup] = useState(false);
-  const [Item, setItem] = useState("");
+  const [Item, setItem] = useState('');
   const [amount, setAmount] = useState(0);
   const [List, setList] = useState([]);
 
   const addData = () => {
-    setList(prevList => [...prevList, { product: Item, amount }]);
-    setItem("");
-    setAmount("");
+    if (!Item.trim() || amount <= 0) {
+      alert('Please enter valid product and amount.');
+      return;
+    }
+    setList([...List, { product: Item, amount }]);
+    setItem('');
+    setAmount(0);
     setAirPopup(false);
   };
 
-  let sum = 0;
-  List.forEach(item => {
-    sum += Number(item.amount) || 0;
+  const sum = List.reduce((acc, item) => acc + Number(item.amount || 0), 0);
+
+  const handlePrint = useReactToPrint({
+    content: () => ref.current,
+    documentTitle: `Invoice${InvoiceNumber}`,
   });
+
+  const triggerPrint = () => {
+    console.log('ref.current at print:', ref.current);
+    if (!ref.current) {
+      alert('Print content not ready.');
+      return;
+    }
+    if (List.length === 0) {
+      alert('There is nothing to print. Please add at least one product.');
+      return;
+    }
+    handlePrint();
+  };
+
   return (
     <>
-    <div className="container" ref={ref}>
-        <div className="container">
-          <div className="row">
-            <div className='col-md-12'>
-              <div className="row">
-                <div className="col-md-4 barcode">
-                  <Barcode value={`4n%${props.InvoiceNumber}+ut%`} width={1} height={50} displayValue={false} />
-                </div>
-
-                <div className="col-md-8 text-right bbc">
-                  <h4 style={{ color: '#325aaB' }}><strong>Company Name</strong></h4>
-                  <p>(+91) 1234567890</p>
-                </div>
-              </div>
-
-              <div className="row">
-                <div className="col-md-12 text-center">
-                  <h2 style={{ color: '#325aab' }}>Invoice</h2>
-                  <h5>Id: {props.InvoiceNumber}</h5>
-                </div>
-              </div>
-
-              <table className='table'>
-                <thead>
-                  <tr>
-                    <th><h5>Products</h5></th>
-                    <th><h5>Amount</h5></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {List.map((items, index) => (
-                    <tr key={index}>
-                      <td className='col-md-9'>{items.product}</td>
-                      <td className='col-md-3'>{items.amount}</td>
-                    </tr>
-                  ))}
-
-                  <tr>
-                    <td className='text-right'>
-                      <p><strong>Total amount</strong></p>
-                      <p><strong>Payable Amount</strong></p>
-                    </td>
-                    <td>
-                      <p><strong>₹ {sum}</strong></p>
-                      <p><strong>₹ {sum}</strong></p>
-                    </td>
-                  </tr>
-
-                  <tr style={{ color: '#FB1d2d' }}>
-                    <td className="text-right"><h4><strong>Total:</strong></h4></td>
-                    <td className="text-left"><h4><strong>₹ {sum}</strong></h4></td>
-                  </tr>
-                </tbody>
-              </table>
-
-              <div className="col-md-12">
-                <p><b>Date :</b> {props.date}</p>
-                <br />
-                <p><b>:Your name</b></p>
-                <p><b>Contact: (+91) 1234567890</b></p>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div
+        ref={ref}
+        style={{
+          padding: 20,
+          backgroundColor: '#fff',
+          color: '#000',
+          minWidth: 300,
+          border: '1px solid #ccc',
+        }}
+      >
+        <h2>Invoice {InvoiceNumber}</h2>
+        {InvoiceNumber && (
+          <Barcode
+            value={`4n%${InvoiceNumber}+ut%`}
+            width={1}
+            height={50}
+            displayValue={false}
+          />
+        )}
+        <table
+          border="1"
+          cellPadding="10"
+          style={{ marginTop: '10px', width: '100%', borderCollapse: 'collapse' }}
+        >
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {List.map((item, index) => (
+              <tr key={index}>
+                <td>{item.product}</td>
+                <td>{item.amount}</td>
+              </tr>
+            ))}
+            <tr>
+              <td>
+                <strong>Total</strong>
+              </td>
+              <td>
+                <strong>{sum}</strong>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p>Date: {date}</p>
       </div>
 
-      <ReactToPrint
-        trigger={() => <button>Print</button>}
-        content={() => ref.current}
-        documentTitle={`Invoice${props.InvoiceNumber}`}
-      />
-      <button onClick={() => setAirPopup(true)}>Add Products</button>
+      <button onClick={triggerPrint} style={{ marginTop: 20 }}>
+        Print
+      </button>
 
-      <Dialog open={openAirPopup}>
-        <DialogTitle>
-          <div className="title">
-            <div className="hed">New Product</div>
-            <div className="icon-cross" onClick={() => setAirPopup(false)}>Close</div>
-          </div>
-        </DialogTitle>
+      <button onClick={() => setAirPopup(true)} style={{ marginLeft: 10 }}>
+        Add Product
+      </button>
+
+      <Dialog open={openAirPopup} onClose={() => setAirPopup(false)}>
+        <DialogTitle>Add New Product</DialogTitle>
         <DialogContent>
-          <div className="container">
-            <div className="forms">
-              <input type="text" value={Item} onChange={(e) => setItem(e.target.value)} placeholder='Product name' />
-              <input type="text" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder='Amount' />
-            </div>
-            <div className="buttons">
-              <button onClick={addData}>Add</button>
-            </div>
-          </div>
+          <input
+            type="text"
+            value={Item}
+            onChange={(e) => setItem(e.target.value)}
+            placeholder="Product"
+            style={{ display: 'block', margin: '10px 0' }}
+          />
+          <input
+            type="number"
+            value={amount}
+            onChange={(e) => setAmount(Number(e.target.value))}
+            placeholder="Amount"
+            style={{ display: 'block', margin: '10px 0' }}
+          />
+          <button onClick={addData}>Add</button>
         </DialogContent>
       </Dialog>
     </>
